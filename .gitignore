@@ -1,0 +1,5 @@
+/nginx/nginx.conf
+/config.json
+/sftp-config.json
+/certs/*
+.DS_Store

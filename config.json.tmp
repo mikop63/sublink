@@ -1,0 +1,17 @@
+{
+  "server": {
+    "port": 8080
+  },
+  "upstream": {
+    "timeout_sec": 15,
+    "update_interval": 1,
+    "hosts": [
+      "https://vpn1.example.com",
+      "https://vpn2.example.com"
+    ]
+  },
+  "admin": {
+    "username": "admin",
+    "password": "your_strong_password_here"
+  }
+}
