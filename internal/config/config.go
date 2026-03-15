@@ -15,10 +15,14 @@ type Config struct {
 }
 
 type ServerConfig struct {
-	Port      int    `json:"port"`
+	Port        int    `json:"port"`
 	// PublicURL is the base URL shown to users, e.g. "https://app.example.com:9999".
-	// Used by the admin panel link converter.
-	PublicURL string `json:"public_url"`
+	// Used by the link converter and Profile-Web-Page-Url header.
+	PublicURL   string `json:"public_url"`
+	// ProfileTitle is sent in the Profile-Title header (plain text, auto base64-encoded).
+	ProfileTitle string `json:"profile_title"`
+	// Announce is sent in the Announce header (plain text, auto base64-encoded).
+	Announce     string `json:"announce"`
 }
 
 type UpstreamConfig struct {

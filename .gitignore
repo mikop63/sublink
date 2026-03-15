@@ -1,5 +1,5 @@
-/nginx/nginx.conf
+.gitignore/nginx/nginx.conf
 /config.json
 /sftp-config.json
 /certs/*
-.DS_Store
+/.DS_Store

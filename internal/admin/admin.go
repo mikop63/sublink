@@ -117,6 +117,7 @@ func (h *Handler) apiGetConfig(w http.ResponseWriter, r *http.Request) {
 	resp := map[string]any{
 		"server_port":     cfg.Server.Port,
 		"public_url":      cfg.Server.PublicURL,
+		"profile_title":   cfg.Server.ProfileTitle,
 		"timeout_sec":     cfg.Upstream.TimeoutSec,
 		"update_interval": cfg.Upstream.UpdateInterval,
 		"hosts":           cfg.Upstream.Hosts,
@@ -130,6 +131,7 @@ func (h *Handler) apiGetConfig(w http.ResponseWriter, r *http.Request) {
 type saveRequest struct {
 	ServerPort     int      `json:"server_port"`
 	PublicURL      string   `json:"public_url"`
+	ProfileTitle   string   `json:"profile_title"`
 	TimeoutSec     int      `json:"timeout_sec"`
 	UpdateInterval int      `json:"update_interval"`
 	Hosts          []string `json:"hosts"`
@@ -157,8 +159,8 @@ func (h *Handler) apiSaveConfig(w http.ResponseWriter, r *http.Request) {
 	if req.ServerPort > 0 {
 		cur.Server.Port = req.ServerPort
 	}
-	// PublicURL may be empty string to clear it, so always overwrite when key present
 	cur.Server.PublicURL = strings.TrimRight(strings.TrimSpace(req.PublicURL), "/")
+	cur.Server.ProfileTitle = strings.TrimSpace(req.ProfileTitle)
 	if req.TimeoutSec > 0 {
 		cur.Upstream.TimeoutSec = req.TimeoutSec
 	}
@@ -345,15 +347,28 @@ input:focus{outline:2px solid #6366f1;border-color:transparent}
   </div>
 </div>
 
-<!-- ── Public URL ── -->
+<!-- ── Public URL & Profile ── -->
 <div class="card">
-  <div class="card-title">Public URL</div>
+  <div class="card-title">Subscription Profile</div>
   <p class="hint">
-    The base URL of this aggregator as seen by users.<br>
-    Used by the Link Converter below, e.g. <code>https://app.example.com:9999</code>
+    These values are sent in subscription response headers and shown in VPN apps.
   </p>
-  <label>Public URL</label>
-  <input type="url" id="public_url" placeholder="https://app.example.com:9999">
+  <div class="grid2">
+    <div>
+      <label>Public URL</label>
+      <input type="url" id="public_url" placeholder="https://app.example.com:9999">
+      <div style="font-size:.75rem;color:#64748b;margin-top:-.5rem;margin-bottom:.75rem">
+        Base URL of this aggregator. Used in <code>Profile-Web-Page-Url</code> header and Link Converter.
+      </div>
+    </div>
+    <div>
+      <label>Profile Title</label>
+      <input type="text" id="profile_title" placeholder="My VPN Subscription">
+      <div style="font-size:.75rem;color:#64748b;margin-top:-.5rem;margin-bottom:.75rem">
+        Shown as subscription name in VPN apps (<code>Profile-Title</code> header).
+      </div>
+    </div>
+  </div>
 </div>
 
 <!-- ── Admin Credentials ── -->
@@ -418,6 +433,7 @@ async function load() {
   document.getElementById('update_interval').value = d.update_interval;
   document.getElementById('admin_username').value = d.admin_username;
   document.getElementById('public_url').value = d.public_url || '';
+  document.getElementById('profile_title').value = d.profile_title || '';
   document.getElementById('hosts').innerHTML = '';
   (d.hosts || []).forEach(addHost);
 }
@@ -445,6 +461,9 @@ async function save() {
     timeout_sec:     parseInt(document.getElementById('timeout_sec').value) || 15,
     update_interval: parseInt(document.getElementById('update_interval').value) || 1,
     public_url:      publicURL,
+    profile_title:   document.getElementById('profile_title').value.trim(),
+    announce:        document.getElementById('announce').value.trim(),
+    profile_title:   document.getElementById('profile_title').value.trim(),
     hosts,
     admin_username: document.getElementById('admin_username').value,
     admin_password: newPass || savedPassword,

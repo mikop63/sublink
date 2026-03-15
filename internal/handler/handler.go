@@ -75,9 +75,27 @@ func (h *SubHandler) serveSubscription(w http.ResponseWriter, r *http.Request, r
 	body := strings.Join(result.Lines, "\n") + "\n"
 	encoded := base64.StdEncoding.EncodeToString([]byte(body))
 
-	w.Header().Set("Content-Type", "text/plain; charset=utf-8")
+	// Profile-Title: use configured title or fall back to host
+	title := cfg.Server.ProfileTitle
+	if title == "" {
+		title = r.Host
+	}
+	w.Header().Set("Profile-Title", "base64:"+base64.StdEncoding.EncodeToString([]byte(title)))
 	w.Header().Set("Profile-Update-Interval", fmt.Sprintf("%d", cfg.Upstream.UpdateInterval))
 	w.Header().Set("Subscription-Userinfo", formatUserinfo(result.Userinfo))
+	w.Header().Set("Routing-Enable", "true")
+
+	// Announce header (optional description shown in some VPN clients)
+	if cfg.Server.Announce != "" {
+		w.Header().Set("Announce", "base64:"+base64.StdEncoding.EncodeToString([]byte(cfg.Server.Announce)))
+	}
+
+	// Profile-Web-Page-Url: full public URL of this subscription page
+	if cfg.Server.PublicURL != "" {
+		w.Header().Set("Profile-Web-Page-Url", cfg.Server.PublicURL+r.URL.RequestURI())
+	}
+
+	w.Header().Set("Content-Type", "text/plain; charset=utf-8")
 	w.Header().Set("Cache-Control", "no-store")
 	w.WriteHeader(http.StatusOK)
 	fmt.Fprint(w, encoded)

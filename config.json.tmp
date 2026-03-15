@@ -1,6 +1,9 @@
 {
   "server": {
-    "port": 8080
+    "port": 8080,
+    "public_url": "https://app.example.com:9999",
+    "profile_title": "My VPN Subscription",
+    "announce": ""
   },
   "upstream": {
     "timeout_sec": 15,
@@ -12,6 +15,6 @@
   },
   "admin": {
     "username": "admin",
-    "password": "your_strong_password_here"
+    "password": "change_me_please"
   }
 }
