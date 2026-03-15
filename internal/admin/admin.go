@@ -116,6 +116,7 @@ func (h *Handler) apiGetConfig(w http.ResponseWriter, r *http.Request) {
 	cfg := h.cfgMgr.Get()
 	resp := map[string]any{
 		"server_port":     cfg.Server.Port,
+		"public_url":      cfg.Server.PublicURL,
 		"timeout_sec":     cfg.Upstream.TimeoutSec,
 		"update_interval": cfg.Upstream.UpdateInterval,
 		"hosts":           cfg.Upstream.Hosts,
@@ -128,6 +129,7 @@ func (h *Handler) apiGetConfig(w http.ResponseWriter, r *http.Request) {
 
 type saveRequest struct {
 	ServerPort     int      `json:"server_port"`
+	PublicURL      string   `json:"public_url"`
 	TimeoutSec     int      `json:"timeout_sec"`
 	UpdateInterval int      `json:"update_interval"`
 	Hosts          []string `json:"hosts"`
@@ -155,6 +157,8 @@ func (h *Handler) apiSaveConfig(w http.ResponseWriter, r *http.Request) {
 	if req.ServerPort > 0 {
 		cur.Server.Port = req.ServerPort
 	}
+	// PublicURL may be empty string to clear it, so always overwrite when key present
+	cur.Server.PublicURL = strings.TrimRight(strings.TrimSpace(req.PublicURL), "/")
 	if req.TimeoutSec > 0 {
 		cur.Upstream.TimeoutSec = req.TimeoutSec
 	}
@@ -257,7 +261,7 @@ a.logout:hover{color:#f1f5f9;border-color:#64748b}
 code{color:#818cf8;background:#1e1b4b;padding:.1em .35em;border-radius:4px;font-size:.85em}
 label{display:block;font-size:.75rem;font-weight:700;color:#94a3b8;
       text-transform:uppercase;letter-spacing:.06em;margin-bottom:.35rem}
-input[type=text],input[type=password],input[type=number]{
+input[type=text],input[type=password],input[type=number],input[type=url]{
   width:100%;padding:.6rem .85rem;border-radius:8px;border:1px solid #334155;
   background:#0f172a;color:#f1f5f9;font-size:.95rem;margin-bottom:1rem}
 input:focus{outline:2px solid #6366f1;border-color:transparent}
@@ -276,6 +280,26 @@ input:focus{outline:2px solid #6366f1;border-color:transparent}
           transition:background .2s}
 .btn-save:hover{background:#4f46e5}
 .btn-save:disabled{background:#334155;cursor:not-allowed}
+/* ── Converter ── */
+.convert-row{display:flex;gap:.75rem;align-items:flex-start}
+.convert-row input{margin-bottom:0;flex:1}
+.btn-convert{background:#0f766e;color:#99f6e4;border:none;border-radius:8px;
+             padding:.62rem 1.25rem;cursor:pointer;font-size:.9rem;font-weight:700;
+             white-space:nowrap;transition:background .2s;flex-shrink:0}
+.btn-convert:hover{background:#0d9488}
+.result-box{display:none;margin-top:1.25rem}
+.result-url{background:#0f172a;border:1px solid #334155;border-radius:8px;
+            padding:.75rem 1rem;font-family:'SFMono-Regular',Consolas,monospace;
+            font-size:.85rem;color:#a5b4fc;word-break:break-all;
+            cursor:pointer;transition:border-color .2s;position:relative}
+.result-url:hover{border-color:#6366f1}
+.result-copy-hint{font-size:.72rem;color:#475569;margin-top:.35rem;text-align:right}
+.qr-wrap{display:flex;flex-direction:column;align-items:center;gap:.75rem;margin-top:1.25rem}
+.qr-frame{background:#fff;border-radius:10px;padding:10px;cursor:pointer;
+           box-shadow:0 4px 16px rgba(0,0,0,.35);transition:transform .15s}
+.qr-frame:hover{transform:scale(1.03)}
+.qr-hint{font-size:.75rem;color:#64748b}
+/* ── Toast ── */
 .toast{position:fixed;bottom:2rem;right:2rem;padding:.85rem 1.5rem;border-radius:10px;
        font-weight:600;font-size:.95rem;opacity:0;transition:opacity .3s;
        pointer-events:none;z-index:100}
@@ -293,6 +317,7 @@ input:focus{outline:2px solid #6366f1;border-color:transparent}
   <a class="logout" href="/admin/logout">Sign out</a>
 </div>
 
+<!-- ── Upstream Hosts ── -->
 <div class="card">
   <div class="card-title">Upstream Hosts</div>
   <p class="hint">
@@ -305,6 +330,7 @@ input:focus{outline:2px solid #6366f1;border-color:transparent}
   <button class="btn-add" onclick="addHost('')">+ Add host</button>
 </div>
 
+<!-- ── Upstream Settings ── -->
 <div class="card">
   <div class="card-title">Upstream Settings</div>
   <div class="grid2">
@@ -319,6 +345,18 @@ input:focus{outline:2px solid #6366f1;border-color:transparent}
   </div>
 </div>
 
+<!-- ── Public URL ── -->
+<div class="card">
+  <div class="card-title">Public URL</div>
+  <p class="hint">
+    The base URL of this aggregator as seen by users.<br>
+    Used by the Link Converter below, e.g. <code>https://app.example.com:9999</code>
+  </p>
+  <label>Public URL</label>
+  <input type="url" id="public_url" placeholder="https://app.example.com:9999">
+</div>
+
+<!-- ── Admin Credentials ── -->
 <div class="card">
   <div class="card-title">Admin Credentials</div>
   <div class="grid2">
@@ -336,17 +374,50 @@ input:focus{outline:2px solid #6366f1;border-color:transparent}
 
 <button class="btn-save" id="btn-save" onclick="save()">💾 Save Configuration</button>
 
+<!-- ── Link Converter ── -->
+<div class="card" style="margin-top:2rem">
+  <div class="card-title">🔗 Link Converter</div>
+  <p class="hint">
+    Paste a subscription URL from any upstream panel — get a new link
+    pointing to this aggregator with the same path.<br>
+    <span style="color:#94a3b8">Requires <strong>Public URL</strong> to be set above.</span>
+  </p>
+  <label>Original URL</label>
+  <div class="convert-row">
+    <input type="url" id="conv-input" placeholder="https://vpn1.example.com/api/TOKEN">
+    <button class="btn-convert" onclick="convert()">Convert →</button>
+  </div>
+
+  <div class="result-box" id="result-box">
+    <label>Converted URL</label>
+    <div class="result-url" id="result-url" onclick="copyResult()" title="Click to copy"></div>
+    <div class="result-copy-hint">click to copy</div>
+
+    <div class="qr-wrap">
+      <canvas id="conv-qr"></canvas>
+      <div class="qr-frame" id="qr-frame" onclick="copyResult()" title="Click to copy URL">
+        <canvas id="conv-qr-display"></canvas>
+      </div>
+      <div class="qr-hint">Click QR to copy URL · Scan with VPN app</div>
+    </div>
+  </div>
+</div>
+
 <div class="toast" id="toast"></div>
 
+<script src="https://cdnjs.cloudflare.com/ajax/libs/qrious/4.0.2/qrious.min.js"></script>
 <script>
 let savedPassword = '';
+let currentPublicURL = '';
 
 async function load() {
   const d = await fetch('/admin/api/config').then(r => r.json());
   savedPassword = d.admin_password;
+  currentPublicURL = d.public_url || '';
   document.getElementById('timeout_sec').value = d.timeout_sec;
   document.getElementById('update_interval').value = d.update_interval;
   document.getElementById('admin_username').value = d.admin_username;
+  document.getElementById('public_url').value = d.public_url || '';
   document.getElementById('hosts').innerHTML = '';
   (d.hosts || []).forEach(addHost);
 }
@@ -369,9 +440,11 @@ async function save() {
   const hosts = [...document.querySelectorAll('#hosts .host-row input')]
     .map(i => i.value.trim()).filter(Boolean);
   const newPass = document.getElementById('admin_password').value;
+  const publicURL = document.getElementById('public_url').value.trim().replace(/\/$/, '');
   const payload = {
     timeout_sec:     parseInt(document.getElementById('timeout_sec').value) || 15,
     update_interval: parseInt(document.getElementById('update_interval').value) || 1,
+    public_url:      publicURL,
     hosts,
     admin_username: document.getElementById('admin_username').value,
     admin_password: newPass || savedPassword,
@@ -385,6 +458,7 @@ async function save() {
     const d = await res.json();
     if (d.ok) {
       if (newPass) savedPassword = newPass;
+      currentPublicURL = publicURL;
       document.getElementById('admin_password').value = '';
       toast('Saved ✓', 'ok');
     } else {
@@ -395,6 +469,50 @@ async function save() {
   } finally {
     btn.disabled = false;
   }
+}
+
+// ── Link Converter ────────────────────────────────────────────────────────────
+
+function convert() {
+  const raw = document.getElementById('conv-input').value.trim();
+  const base = (document.getElementById('public_url').value.trim() || currentPublicURL).replace(/\/$/, '');
+
+  if (!base) {
+    toast('Set Public URL first and save config', 'err');
+    return;
+  }
+  if (!raw) {
+    toast('Paste a URL to convert', 'err');
+    return;
+  }
+
+  let parsed;
+  try { parsed = new URL(raw); }
+  catch(_) { toast('Invalid URL', 'err'); return; }
+
+  // Keep path + query, replace origin with public URL
+  const converted = base + parsed.pathname + parsed.search;
+
+  document.getElementById('result-url').textContent = converted;
+  document.getElementById('result-box').style.display = 'block';
+
+  // Draw QR on the visible canvas
+  new QRious({
+    element: document.getElementById('conv-qr-display'),
+    value: converted,
+    size: 180,
+    background: '#ffffff',
+    foreground: '#0f172a',
+    padding: 4,
+    level: 'M',
+  });
+}
+
+function copyResult() {
+  const text = document.getElementById('result-url').textContent;
+  navigator.clipboard.writeText(text).then(function() {
+    toast('Copied ✓', 'ok');
+  });
 }
 
 function toast(msg, type) {

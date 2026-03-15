@@ -15,7 +15,10 @@ type Config struct {
 }
 
 type ServerConfig struct {
-	Port int `json:"port"`
+	Port      int    `json:"port"`
+	// PublicURL is the base URL shown to users, e.g. "https://app.example.com:9999".
+	// Used by the admin panel link converter.
+	PublicURL string `json:"public_url"`
 }
 
 type UpstreamConfig struct {

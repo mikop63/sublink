@@ -24,11 +24,11 @@ services:
     restart: unless-stopped
     ports:
       - "80:80"
-      - "443:443"
+      - "8999:8999"
     volumes:
       - ./nginx/nginx.conf:/etc/nginx/nginx.conf:ro
-      - /etc/letsencrypt:/etc/nginx/certs:ro        # папка с cert.crt и cert.key
-      # - ./certs:/etc/nginx/certs:ro        # папка с cert.crt и cert.key
+      # - /etc/letsencrypt:/etc/nginx/certs:ro        # папка с cert.crt и cert.key
+      - ./certs:/etc/nginx/certs:ro        # папка с cert.crt и cert.key
     depends_on:
       - vless-aggregator
     networks:
